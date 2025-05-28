@@ -7,6 +7,7 @@ import { FileText, Database, Calendar, BarChart } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import DatasetPreview from './DatasetPreview';
 
 const DatasetsList = () => {
   const { data: datasets, isLoading } = useQuery({
@@ -123,13 +124,17 @@ const DatasetsList = () => {
                   {new Date(dataset.created_at).toLocaleDateString()}
                 </div>
               </div>
+              
               {dataset.status === 'ready' && (
-                <Button 
-                  onClick={() => startAnalysis(dataset.id)}
-                  className="w-full"
-                >
-                  Start AI Analysis
-                </Button>
+                <div className="flex gap-2">
+                  <DatasetPreview dataset={dataset} />
+                  <Button 
+                    onClick={() => startAnalysis(dataset.id)}
+                    className="flex-1"
+                  >
+                    Start AI Analysis
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
