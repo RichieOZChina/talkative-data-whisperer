@@ -9,7 +9,204 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      analyses: {
+        Row: {
+          analysis_type: string
+          completed_at: string | null
+          created_at: string
+          dataset_id: string
+          error_message: string | null
+          id: string
+          started_at: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          analysis_type: string
+          completed_at?: string | null
+          created_at?: string
+          dataset_id: string
+          error_message?: string | null
+          id?: string
+          started_at?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          analysis_type?: string
+          completed_at?: string | null
+          created_at?: string
+          dataset_id?: string
+          error_message?: string | null
+          id?: string
+          started_at?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analyses_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: false
+            referencedRelation: "datasets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analysis_results: {
+        Row: {
+          analysis_id: string
+          confidence_score: number | null
+          content: Json
+          created_at: string
+          id: string
+          insights: string[] | null
+          result_type: string
+          title: string
+        }
+        Insert: {
+          analysis_id: string
+          confidence_score?: number | null
+          content: Json
+          created_at?: string
+          id?: string
+          insights?: string[] | null
+          result_type: string
+          title: string
+        }
+        Update: {
+          analysis_id?: string
+          confidence_score?: number | null
+          content?: Json
+          created_at?: string
+          id?: string
+          insights?: string[] | null
+          result_type?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_results_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dataset_columns: {
+        Row: {
+          column_index: number
+          column_name: string
+          column_type: string
+          created_at: string
+          dataset_id: string
+          id: string
+          null_count: number | null
+          sample_values: Json | null
+          unique_count: number | null
+        }
+        Insert: {
+          column_index: number
+          column_name: string
+          column_type: string
+          created_at?: string
+          dataset_id: string
+          id?: string
+          null_count?: number | null
+          sample_values?: Json | null
+          unique_count?: number | null
+        }
+        Update: {
+          column_index?: number
+          column_name?: string
+          column_type?: string
+          created_at?: string
+          dataset_id?: string
+          id?: string
+          null_count?: number | null
+          sample_values?: Json | null
+          unique_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dataset_columns_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: false
+            referencedRelation: "datasets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      datasets: {
+        Row: {
+          column_count: number | null
+          created_at: string
+          description: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          name: string
+          row_count: number | null
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          column_count?: number | null
+          created_at?: string
+          description?: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id?: string
+          name: string
+          row_count?: number | null
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          column_count?: number | null
+          created_at?: string
+          description?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          name?: string
+          row_count?: number | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

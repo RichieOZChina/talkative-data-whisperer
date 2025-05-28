@@ -5,11 +5,22 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, FileText, CheckCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 const FileUpload = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
+
+  // Check if user is authenticated
+  const { data: session } = useQuery({
+    queryKey: ['session'],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      return data.session;
+    },
+  });
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -31,24 +42,99 @@ const FileUpload = () => {
     }
   };
 
+  const parseCSVHeaders = (csvText: string) => {
+    const lines = csvText.split('\n');
+    if (lines.length === 0) return [];
+    
+    // Parse the first line as headers
+    const headers = lines[0].split(',').map(header => header.trim().replace(/"/g, ''));
+    return headers;
+  };
+
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !session?.user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to upload files",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setUploading(true);
     try {
-      // TODO: Integrate with Supabase for file upload and database storage
-      // For now, simulate upload process
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      // Create file path with user ID
+      const fileName = `${Date.now()}-${selectedFile.name}`;
+      const filePath = `${session.user.id}/${fileName}`;
+
+      console.log('Uploading file to:', filePath);
+
+      // Upload file to Supabase storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('datasets')
+        .upload(filePath, selectedFile);
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw uploadError;
+      }
+
+      console.log('File uploaded successfully:', uploadData);
+
+      // Read file content to analyze structure
+      const fileText = await selectedFile.text();
+      const headers = parseCSVHeaders(fileText);
+      const lines = fileText.split('\n').filter(line => line.trim());
+      const rowCount = Math.max(0, lines.length - 1); // Subtract header row
+
+      console.log('CSV analysis:', { headers, rowCount });
+
+      // Save dataset metadata to database
+      const { data: datasetData, error: datasetError } = await supabase
+        .from('datasets')
+        .insert({
+          user_id: session.user.id,
+          name: selectedFile.name.replace('.csv', ''),
+          file_name: selectedFile.name,
+          file_path: filePath,
+          file_size: selectedFile.size,
+          row_count: rowCount,
+          column_count: headers.length,
+          status: 'ready'
+        })
+        .select()
+        .single();
+
+      if (datasetError) {
+        console.error('Dataset creation error:', datasetError);
+        throw datasetError;
+      }
+
+      console.log('Dataset created:', datasetData);
+
+      // Save column information
+      const columnPromises = headers.map((header, index) => 
+        supabase.from('dataset_columns').insert({
+          dataset_id: datasetData.id,
+          column_name: header,
+          column_type: 'text', // Default to text, can be enhanced later
+          column_index: index
+        })
+      );
+
+      await Promise.all(columnPromises);
+      console.log('Columns saved successfully');
+
       setUploadComplete(true);
       toast({
         title: "Upload successful",
         description: "Your CSV file has been processed and saved",
       });
     } catch (error) {
+      console.error('Upload process error:', error);
       toast({
         title: "Upload failed",
-        description: "There was an error uploading your file",
+        description: error instanceof Error ? error.message : "There was an error uploading your file",
         variant: "destructive",
       });
     } finally {
@@ -61,6 +147,36 @@ const FileUpload = () => {
     setUploadComplete(false);
     setUploading(false);
   };
+
+  if (!session) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="flex items-center justify-center gap-2">
+            <FileText className="h-6 w-6" />
+            CSV Upload
+          </CardTitle>
+          <CardDescription>
+            Please sign in to upload and analyze your CSV files
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button 
+            onClick={() => {
+              // This will be updated when we add authentication
+              toast({
+                title: "Authentication coming soon",
+                description: "User authentication will be implemented next",
+              });
+            }}
+            className="w-full"
+          >
+            Sign In to Continue
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md">
