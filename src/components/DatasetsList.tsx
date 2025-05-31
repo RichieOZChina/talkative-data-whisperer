@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import DatasetCard from './DatasetCard';
 import EmptyDatasetsView from './EmptyDatasetsView';
 
 const DatasetsList = () => {
+  const navigate = useNavigate();
   const [selectedPrompts, setSelectedPrompts] = useState<{[key: string]: string}>({});
   const [selectedModels, setSelectedModels] = useState<{[key: string]: string}>({});
 
@@ -93,109 +95,15 @@ const DatasetsList = () => {
         return;
       }
 
-      const selectedPromptId = selectedPrompts[datasetId];
-      const selectedModelId = selectedModels[datasetId];
-
-      if (!selectedPromptId || !selectedModelId) {
-        toast({
-          title: "Selection required",
-          description: "Please select both a prompt and model for analysis",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const selectedPrompt = prompts?.find(p => p.id === selectedPromptId);
-      const selectedModel = models?.find(m => m.id === selectedModelId);
-      const dataset = datasets?.find(d => d.id === datasetId);
-
-      if (!selectedPrompt || !selectedModel || !dataset) {
-        toast({
-          title: "Error",
-          description: "Could not find selected prompt, model, or dataset",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Create analysis record
-      const { data: analysisData, error: analysisError } = await supabase
-        .from('analyses')
-        .insert({
-          dataset_id: datasetId,
-          user_id: session.session.user.id,
-          analysis_type: selectedPrompt.analysis_type,
-          status: 'running',
-          started_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (analysisError) throw analysisError;
-
-      toast({
-        title: "Analysis started",
-        description: `Analysis queued using ${selectedPrompt.name} with ${selectedModel.name}`,
-      });
-
-      // Get dataset preview
-      const datasetPreview = await getDatasetPreview(dataset);
-
-      // Prepare prompt with variables
-      let processedPrompt = selectedPrompt.prompt_text
-        .replace('{dataset_preview}', datasetPreview)
-        .replace('{dataset_name}', dataset.name)
-        .replace('{row_count}', dataset.row_count?.toString() || 'Unknown')
-        .replace('{column_count}', dataset.column_count?.toString() || 'Unknown');
-
-      // Call the OpenAI edge function
-      const response = await supabase.functions.invoke('chat-with-openai', {
-        body: {
-          messages: [
-            { role: 'user', content: processedPrompt }
-          ],
-          model: selectedModel.model_id
-        }
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message || 'Failed to get AI response');
-      }
-
-      const aiResponse = response.data.choices[0].message.content;
-
-      // Store the analysis result
-      await supabase
-        .from('analysis_results')
-        .insert({
-          analysis_id: analysisData.id,
-          title: `${selectedPrompt.name} - ${dataset.name}`,
-          content: { analysis: aiResponse },
-          result_type: 'text_analysis'
-        });
-
-      // Update analysis status
-      await supabase
-        .from('analyses')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', analysisData.id);
-
-      toast({
-        title: "Analysis completed",
-        description: "Your dataset analysis has been completed successfully",
-      });
-
-      console.log('Analysis completed:', aiResponse);
+      // Navigate to analysis page
+      navigate(`/analysis/${datasetId}`);
 
     } catch (error) {
-      console.error('Error during analysis:', error);
+      console.error('Error navigating to analysis:', error);
       
       toast({
-        title: "Analysis failed",
-        description: error instanceof Error ? error.message : "An error occurred during analysis",
+        title: "Navigation failed",
+        description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
     }
