@@ -1,15 +1,19 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Database, Calendar, BarChart } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { FileText, Database, Calendar, BarChart, Brain, Settings } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import DatasetPreview from './DatasetPreview';
 
 const DatasetsList = () => {
+  const [selectedPrompts, setSelectedPrompts] = useState<{[key: string]: string}>({});
+  const [selectedModels, setSelectedModels] = useState<{[key: string]: string}>({});
+
   const { data: datasets, isLoading } = useQuery({
     queryKey: ['datasets'],
     queryFn: async () => {
@@ -17,6 +21,34 @@ const DatasetsList = () => {
         .from('datasets')
         .select('*')
         .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: prompts } = useQuery({
+    queryKey: ['prompts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('prompts')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: models } = useQuery({
+    queryKey: ['models'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('models')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
       
       if (error) throw error;
       return data;
@@ -35,12 +67,27 @@ const DatasetsList = () => {
         return;
       }
 
+      const selectedPromptId = selectedPrompts[datasetId];
+      const selectedModelId = selectedModels[datasetId];
+
+      if (!selectedPromptId || !selectedModelId) {
+        toast({
+          title: "Selection required",
+          description: "Please select both a prompt and model for analysis",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const selectedPrompt = prompts?.find(p => p.id === selectedPromptId);
+      const selectedModel = models?.find(m => m.id === selectedModelId);
+
       const { data, error } = await supabase
         .from('analyses')
         .insert({
           dataset_id: datasetId,
           user_id: session.session.user.id,
-          analysis_type: 'general_insights',
+          analysis_type: selectedPrompt?.analysis_type || 'general_insights',
           status: 'pending'
         })
         .select()
@@ -48,9 +95,13 @@ const DatasetsList = () => {
 
       if (error) throw error;
 
+      console.log('Analysis started:', data);
+      console.log('Using prompt:', selectedPrompt?.name);
+      console.log('Using model:', selectedModel?.name);
+
       toast({
         title: "Analysis started",
-        description: "Your dataset analysis has been queued",
+        description: `Analysis queued using ${selectedPrompt?.name} with ${selectedModel?.name}`,
       });
     } catch (error) {
       toast({
@@ -126,14 +177,71 @@ const DatasetsList = () => {
               </div>
               
               {dataset.status === 'ready' && (
-                <div className="flex gap-2">
-                  <DatasetPreview dataset={dataset} />
-                  <Button 
-                    onClick={() => startAnalysis(dataset.id)}
-                    className="flex-1"
-                  >
-                    Start AI Analysis
-                  </Button>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium flex items-center gap-1">
+                        <Brain className="h-4 w-4" />
+                        Analysis Type
+                      </label>
+                      <Select
+                        value={selectedPrompts[dataset.id] || ''}
+                        onValueChange={(value) => setSelectedPrompts(prev => ({...prev, [dataset.id]: value}))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select analysis type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {prompts?.map((prompt) => (
+                            <SelectItem key={prompt.id} value={prompt.id}>
+                              <div className="space-y-1">
+                                <div className="font-medium">{prompt.name}</div>
+                                <div className="text-xs text-muted-foreground">{prompt.description}</div>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium flex items-center gap-1">
+                        <Settings className="h-4 w-4" />
+                        AI Model
+                      </label>
+                      <Select
+                        value={selectedModels[dataset.id] || ''}
+                        onValueChange={(value) => setSelectedModels(prev => ({...prev, [dataset.id]: value}))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select AI model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {models?.map((model) => (
+                            <SelectItem key={model.id} value={model.id}>
+                              <div className="space-y-1">
+                                <div className="font-medium">{model.name}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {model.provider} • {model.context_length?.toLocaleString()} tokens
+                                </div>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <DatasetPreview dataset={dataset} />
+                    <Button 
+                      onClick={() => startAnalysis(dataset.id)}
+                      className="flex-1"
+                      disabled={!selectedPrompts[dataset.id] || !selectedModels[dataset.id]}
+                    >
+                      Start AI Analysis
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>

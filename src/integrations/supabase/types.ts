@@ -183,6 +183,54 @@ export type Database = {
         }
         Relationships: []
       }
+      models: {
+        Row: {
+          context_length: number | null
+          cost_per_input_token: number | null
+          cost_per_output_token: number | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          max_tokens: number | null
+          model_id: string
+          name: string
+          provider: string
+          supports_streaming: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          context_length?: number | null
+          cost_per_input_token?: number | null
+          cost_per_output_token?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_tokens?: number | null
+          model_id: string
+          name: string
+          provider: string
+          supports_streaming?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          context_length?: number | null
+          cost_per_input_token?: number | null
+          cost_per_output_token?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_tokens?: number | null
+          model_id?: string
+          name?: string
+          provider?: string
+          supports_streaming?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -204,6 +252,42 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      prompts: {
+        Row: {
+          analysis_type: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          prompt_text: string
+          updated_at: string
+          variables: Json | null
+        }
+        Insert: {
+          analysis_type: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          prompt_text: string
+          updated_at?: string
+          variables?: Json | null
+        }
+        Update: {
+          analysis_type?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          prompt_text?: string
+          updated_at?: string
+          variables?: Json | null
         }
         Relationships: []
       }
