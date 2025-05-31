@@ -1,28 +1,23 @@
 
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { FileText, Database, Calendar, BarChart } from 'lucide-react';
-import DatasetPreview from './DatasetPreview';
+import { FileText, Play } from 'lucide-react';
 import DatasetAnalysisControls from './DatasetAnalysisControls';
 
 interface Dataset {
   id: string;
   name: string;
-  file_name: string;
-  file_size: number;
-  row_count: number;
-  column_count: number;
+  file_path?: string;
+  row_count?: number;
+  column_count?: number;
   created_at: string;
-  status: string;
 }
 
 interface Prompt {
   id: string;
   name: string;
   description: string;
-  analysis_type: string;
 }
 
 interface Model {
@@ -53,64 +48,51 @@ const DatasetCard = ({
   onModelChange,
   onStartAnalysis
 }: DatasetCardProps) => {
+  const selectedPromptId = selectedPrompts[dataset.id];
+  const selectedModelId = selectedModels[dataset.id];
+  const canStartAnalysis = selectedPromptId && selectedModelId;
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              {dataset.name}
-            </CardTitle>
-            <CardDescription>
-              {dataset.file_name} • {(dataset.file_size / 1024).toFixed(1)} KB
-            </CardDescription>
-          </div>
-          <Badge variant={dataset.status === 'ready' ? 'default' : 'secondary'}>
-            {dataset.status}
-          </Badge>
-        </div>
+        <CardTitle className="flex items-center gap-2">
+          <FileText className="h-5 w-5" />
+          {dataset.name}
+        </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-muted-foreground mb-4">
-          <div className="flex items-center gap-1">
-            <Database className="h-4 w-4" />
-            {dataset.row_count} rows
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
+          <div>
+            <span className="font-medium">Rows:</span> {dataset.row_count || 'Unknown'}
           </div>
-          <div className="flex items-center gap-1">
-            <BarChart className="h-4 w-4" />
-            {dataset.column_count} columns
+          <div>
+            <span className="font-medium">Columns:</span> {dataset.column_count || 'Unknown'}
           </div>
-          <div className="flex items-center gap-1">
-            <Calendar className="h-4 w-4" />
-            {new Date(dataset.created_at).toLocaleDateString()}
+          <div>
+            <span className="font-medium">Uploaded:</span> {new Date(dataset.created_at).toLocaleDateString()}
           </div>
         </div>
-        
-        {dataset.status === 'ready' && (
-          <div className="space-y-4">
-            <DatasetAnalysisControls
-              datasetId={dataset.id}
-              prompts={prompts}
-              models={models}
-              selectedPrompts={selectedPrompts}
-              selectedModels={selectedModels}
-              onPromptChange={onPromptChange}
-              onModelChange={onModelChange}
-            />
 
-            <div className="flex gap-2">
-              <DatasetPreview dataset={dataset} />
-              <Button 
-                onClick={() => onStartAnalysis(dataset.id)}
-                className="flex-1"
-                disabled={!selectedPrompts[dataset.id] || !selectedModels[dataset.id]}
-              >
-                Start AI Analysis
-              </Button>
-            </div>
-          </div>
-        )}
+        <DatasetAnalysisControls
+          datasetId={dataset.id}
+          prompts={prompts}
+          models={models}
+          selectedPrompts={selectedPrompts}
+          selectedModels={selectedModels}
+          onPromptChange={onPromptChange}
+          onModelChange={onModelChange}
+        />
+
+        <div className="flex justify-end">
+          <Button 
+            onClick={() => onStartAnalysis(dataset.id)}
+            disabled={!canStartAnalysis}
+            className="flex items-center gap-2"
+          >
+            <Play className="h-4 w-4" />
+            Start Analysis
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
