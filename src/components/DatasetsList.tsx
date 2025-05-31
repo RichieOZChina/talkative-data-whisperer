@@ -1,14 +1,10 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Database, Calendar, BarChart, Brain, Settings } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import DatasetPreview from './DatasetPreview';
+import DatasetCard from './DatasetCard';
+import EmptyDatasetsView from './EmptyDatasetsView';
 
 const DatasetsList = () => {
   const [selectedPrompts, setSelectedPrompts] = useState<{[key: string]: string}>({});
@@ -54,6 +50,14 @@ const DatasetsList = () => {
       return data;
     },
   });
+
+  const handlePromptChange = (datasetId: string, promptId: string) => {
+    setSelectedPrompts(prev => ({...prev, [datasetId]: promptId}));
+  };
+
+  const handleModelChange = (datasetId: string, modelId: string) => {
+    setSelectedModels(prev => ({...prev, [datasetId]: modelId}));
+  };
 
   const startAnalysis = async (datasetId: string) => {
     try {
@@ -122,20 +126,7 @@ const DatasetsList = () => {
   }
 
   if (!datasets || datasets.length === 0) {
-    return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Your Datasets</h3>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center text-muted-foreground">
-              <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No datasets uploaded yet</p>
-              <p className="text-sm">Upload your first CSV file to get started</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <EmptyDatasetsView />;
   }
 
   return (
@@ -143,109 +134,17 @@ const DatasetsList = () => {
       <h3 className="text-lg font-semibold">Your Datasets</h3>
       <div className="grid gap-4">
         {datasets.map((dataset) => (
-          <Card key={dataset.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    {dataset.name}
-                  </CardTitle>
-                  <CardDescription>
-                    {dataset.file_name} • {(dataset.file_size / 1024).toFixed(1)} KB
-                  </CardDescription>
-                </div>
-                <Badge variant={dataset.status === 'ready' ? 'default' : 'secondary'}>
-                  {dataset.status}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-muted-foreground mb-4">
-                <div className="flex items-center gap-1">
-                  <Database className="h-4 w-4" />
-                  {dataset.row_count} rows
-                </div>
-                <div className="flex items-center gap-1">
-                  <BarChart className="h-4 w-4" />
-                  {dataset.column_count} columns
-                </div>
-                <div className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
-                  {new Date(dataset.created_at).toLocaleDateString()}
-                </div>
-              </div>
-              
-              {dataset.status === 'ready' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium flex items-center gap-1">
-                        <Brain className="h-4 w-4" />
-                        Analysis Type
-                      </label>
-                      <Select
-                        value={selectedPrompts[dataset.id] || ''}
-                        onValueChange={(value) => setSelectedPrompts(prev => ({...prev, [dataset.id]: value}))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select analysis type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {prompts?.map((prompt) => (
-                            <SelectItem key={prompt.id} value={prompt.id}>
-                              <div className="space-y-1">
-                                <div className="font-medium">{prompt.name}</div>
-                                <div className="text-xs text-muted-foreground">{prompt.description}</div>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium flex items-center gap-1">
-                        <Settings className="h-4 w-4" />
-                        AI Model
-                      </label>
-                      <Select
-                        value={selectedModels[dataset.id] || ''}
-                        onValueChange={(value) => setSelectedModels(prev => ({...prev, [dataset.id]: value}))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select AI model" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {models?.map((model) => (
-                            <SelectItem key={model.id} value={model.id}>
-                              <div className="space-y-1">
-                                <div className="font-medium">{model.name}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {model.provider} • {model.context_length?.toLocaleString()} tokens
-                                </div>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <DatasetPreview dataset={dataset} />
-                    <Button 
-                      onClick={() => startAnalysis(dataset.id)}
-                      className="flex-1"
-                      disabled={!selectedPrompts[dataset.id] || !selectedModels[dataset.id]}
-                    >
-                      Start AI Analysis
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <DatasetCard
+            key={dataset.id}
+            dataset={dataset}
+            prompts={prompts}
+            models={models}
+            selectedPrompts={selectedPrompts}
+            selectedModels={selectedModels}
+            onPromptChange={handlePromptChange}
+            onModelChange={handleModelChange}
+            onStartAnalysis={startAnalysis}
+          />
         ))}
       </div>
     </div>
