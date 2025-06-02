@@ -9,9 +9,9 @@ import DatasetPreview from './DatasetPreview';
 interface Dataset {
   id: string;
   name: string;
-  file_path?: string;
-  row_count?: number;
-  column_count?: number;
+  file_path: string;
+  row_count: number;
+  column_count: number;
   created_at: string;
 }
 
@@ -53,6 +53,9 @@ const DatasetCard = ({
   const selectedModelId = selectedModels[dataset.id];
   const canStartAnalysis = selectedPromptId && selectedModelId;
 
+  // Check if we have the required data for preview
+  const canShowPreview = dataset.file_path && dataset.row_count && dataset.column_count;
+
   return (
     <Card>
       <CardHeader>
@@ -85,7 +88,7 @@ const DatasetCard = ({
         />
 
         <div className="flex justify-between items-center">
-          <DatasetPreview dataset={dataset} />
+          {canShowPreview && <DatasetPreview dataset={dataset} />}
           <Button 
             onClick={() => onStartAnalysis(dataset.id)}
             disabled={!canStartAnalysis}
