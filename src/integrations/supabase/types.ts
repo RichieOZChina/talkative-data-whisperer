@@ -138,6 +138,41 @@ export type Database = {
           },
         ]
       }
+      dataset_schemas: {
+        Row: {
+          column_analysis: Json
+          created_at: string
+          dataset_id: string
+          generated_sql: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          column_analysis: Json
+          created_at?: string
+          dataset_id: string
+          generated_sql: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          column_analysis?: Json
+          created_at?: string
+          dataset_id?: string
+          generated_sql?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dataset_schemas_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: false
+            referencedRelation: "datasets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       datasets: {
         Row: {
           column_count: number | null

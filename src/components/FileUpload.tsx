@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, FileText, CheckCircle } from 'lucide-react';
+import { Upload, FileText, CheckCircle, Brain } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -12,6 +12,7 @@ const FileUpload = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
 
   // Check if user is authenticated
   const { data: session } = useQuery({
@@ -49,6 +50,40 @@ const FileUpload = () => {
     // Parse the first line as headers
     const headers = lines[0].split(',').map(header => header.trim().replace(/"/g, ''));
     return headers;
+  };
+
+  const analyzeDatasetMetadata = async (datasetId: string) => {
+    try {
+      setAnalyzing(true);
+      console.log('Starting metadata analysis for dataset:', datasetId);
+
+      const { data, error } = await supabase.functions.invoke('analyze-csv-metadata', {
+        body: { datasetId }
+      });
+
+      if (error) {
+        console.error('Analysis error:', error);
+        throw error;
+      }
+
+      console.log('Metadata analysis complete:', data);
+      
+      toast({
+        title: "Analysis Complete",
+        description: "AI has analyzed your dataset structure and generated SQL schema",
+      });
+
+      return data;
+    } catch (error) {
+      console.error('Error analyzing metadata:', error);
+      toast({
+        title: "Analysis Failed", 
+        description: "Could not analyze dataset metadata. Manual review may be needed.",
+        variant: "destructive",
+      });
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   const handleUpload = async () => {
@@ -100,7 +135,7 @@ const FileUpload = () => {
           file_size: selectedFile.size,
           row_count: rowCount,
           column_count: headers.length,
-          status: 'ready'
+          status: 'processing'
         })
         .select()
         .single();
@@ -117,7 +152,7 @@ const FileUpload = () => {
         supabase.from('dataset_columns').insert({
           dataset_id: datasetData.id,
           column_name: header,
-          column_type: 'text', // Default to text, can be enhanced later
+          column_type: 'text', // Default to text, will be updated by AI analysis
           column_index: index
         })
       );
@@ -130,6 +165,10 @@ const FileUpload = () => {
         title: "Upload successful",
         description: "Your CSV file has been processed and saved",
       });
+
+      // Automatically trigger metadata analysis
+      await analyzeDatasetMetadata(datasetData.id);
+
     } catch (error) {
       console.error('Upload process error:', error);
       toast({
@@ -146,6 +185,7 @@ const FileUpload = () => {
     setSelectedFile(null);
     setUploadComplete(false);
     setUploading(false);
+    setAnalyzing(false);
   };
 
   if (!session) {
@@ -226,13 +266,27 @@ const FileUpload = () => {
           </>
         ) : (
           <div className="text-center space-y-4">
-            <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
-            <div>
-              <p className="font-medium">Upload Complete!</p>
-              <p className="text-sm text-muted-foreground">
-                Your data is ready for AI analysis
-              </p>
-            </div>
+            {analyzing ? (
+              <>
+                <Brain className="h-12 w-12 text-blue-500 mx-auto animate-pulse" />
+                <div>
+                  <p className="font-medium">AI is analyzing your data...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Generating SQL schema and metadata
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
+                <div>
+                  <p className="font-medium">Upload & Analysis Complete!</p>
+                  <p className="text-sm text-muted-foreground">
+                    Your data is ready for AI analysis
+                  </p>
+                </div>
+              </>
+            )}
             <Button onClick={resetUpload} variant="outline" className="w-full">
               Upload Another File
             </Button>
