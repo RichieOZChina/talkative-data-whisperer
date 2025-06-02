@@ -43,16 +43,21 @@ const DatasetPreview = ({ dataset }: DatasetPreviewProps) => {
   const [loading, setLoading] = useState(false);
 
   // Fetch schema analysis if available
-  const { data: schemaData } = useQuery({
+  const { data: schemaData, isLoading: schemaLoading } = useQuery({
     queryKey: ['dataset-schema', dataset.id],
     queryFn: async () => {
+      console.log('Fetching schema for dataset:', dataset.id);
       const { data, error } = await supabase
         .from('dataset_schemas')
         .select('*')
         .eq('dataset_id', dataset.id)
         .single();
       
-      if (error) return null;
+      if (error) {
+        console.log('No schema found:', error);
+        return null;
+      }
+      console.log('Schema data:', data);
       return data;
     },
     enabled: isOpen,
@@ -133,7 +138,23 @@ const DatasetPreview = ({ dataset }: DatasetPreviewProps) => {
     if (!schemaData?.column_analysis || typeof schemaData.column_analysis !== 'object') {
       return null;
     }
-    return schemaData.column_analysis as AnalysisData;
+    
+    // Handle the case where column_analysis might be nested
+    const analysis = schemaData.column_analysis as any;
+    if (analysis.column_analysis) {
+      return analysis as AnalysisData;
+    }
+    
+    // Handle direct column_analysis array
+    if (Array.isArray(analysis)) {
+      return {
+        column_analysis: analysis,
+        table_name: schemaData.table_name || 'Unknown',
+        total_columns: analysis.length
+      };
+    }
+    
+    return analysis as AnalysisData;
   };
 
   const analysis = getAnalysisData();
@@ -165,45 +186,49 @@ const DatasetPreview = ({ dataset }: DatasetPreviewProps) => {
           </DialogDescription>
         </DialogHeader>
 
-        {loading ? (
+        {(loading || schemaLoading) ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
-            Loading data preview...
+            Loading data preview and analysis...
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Column Analysis Section */}
+            {/* Column Analysis Section - Always show if available */}
             {analysis && analysis.column_analysis && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Database className="h-5 w-5" />
-                    AI Column Analysis
+                    AI Metadata Analysis
+                    <Badge variant="secondary" className="ml-2">
+                      {analysis.column_analysis.length} columns analyzed
+                    </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-3">
                     {analysis.column_analysis.map((column: ColumnAnalysis, index: number) => (
-                      <div key={index} className="border rounded-lg p-3 bg-muted/20">
+                      <div key={index} className="border rounded-lg p-4 bg-muted/20">
                         <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-medium text-sm">{column.column_name}</h4>
-                          <Badge variant="secondary" className="text-xs">{column.sql_type}</Badge>
-                          <Badge variant="outline" className="text-xs">{column.data_type}</Badge>
+                          <h4 className="font-medium">{column.column_name}</h4>
+                          <Badge variant="secondary">{column.sql_type}</Badge>
+                          <Badge variant="outline">{column.data_type}</Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-2">{column.description}</p>
-                        <div className="grid grid-cols-3 gap-2 text-xs">
-                          <div>
-                            <span className="font-medium">Unique:</span> {column.unique_count || 'N/A'}
+                        <p className="text-sm text-muted-foreground mb-3">{column.description}</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                          <div className="space-y-1">
+                            <span className="font-medium text-xs uppercase tracking-wide text-muted-foreground">Statistics</span>
+                            <div className="space-y-1">
+                              <div><span className="font-medium">Unique:</span> {column.unique_count || 'N/A'}</div>
+                              <div><span className="font-medium">Nulls:</span> {column.null_count || 0}</div>
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-medium">Nulls:</span> {column.null_count || 0}
-                          </div>
-                          <div>
-                            <span className="font-medium">Samples:</span>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {column.sample_values?.slice(0, 2).map((value: string, i: number) => (
-                                <Badge key={i} variant="outline" className="text-xs px-1">
-                                  {value.length > 10 ? `${value.substring(0, 10)}...` : value}
+                          <div className="space-y-1 md:col-span-2">
+                            <span className="font-medium text-xs uppercase tracking-wide text-muted-foreground">Sample Values</span>
+                            <div className="flex flex-wrap gap-1">
+                              {column.sample_values?.slice(0, 4).map((value: string, i: number) => (
+                                <Badge key={i} variant="outline" className="text-xs px-2 py-1">
+                                  {value.length > 15 ? `${value.substring(0, 15)}...` : value}
                                 </Badge>
                               ))}
                             </div>
@@ -211,6 +236,19 @@ const DatasetPreview = ({ dataset }: DatasetPreviewProps) => {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Show message if no analysis available */}
+            {!analysis && !schemaLoading && (
+              <Card>
+                <CardContent className="py-6">
+                  <div className="text-center text-muted-foreground">
+                    <Database className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No AI analysis available for this dataset yet.</p>
+                    <p className="text-sm">Analysis will be generated automatically after upload.</p>
                   </div>
                 </CardContent>
               </Card>
@@ -233,14 +271,17 @@ const DatasetPreview = ({ dataset }: DatasetPreviewProps) => {
                           {headers.map((header, index) => {
                             const colAnalysis = getColumnAnalysis(header);
                             return (
-                              <TableHead key={index} className="font-semibold bg-muted/50 min-w-[120px]">
-                                <div className="space-y-1">
-                                  <div>{header}</div>
+                              <TableHead key={index} className="font-semibold bg-muted/50 min-w-[150px]">
+                                <div className="space-y-2">
+                                  <div className="font-medium">{header}</div>
                                   {colAnalysis && (
-                                    <div className="flex gap-1">
-                                      <Badge variant="outline" className="text-xs px-1">
+                                    <div className="flex flex-col gap-1">
+                                      <Badge variant="outline" className="text-xs px-1 w-fit">
                                         {colAnalysis.sql_type}
                                       </Badge>
+                                      <div className="text-xs text-muted-foreground font-normal">
+                                        {colAnalysis.data_type}
+                                      </div>
                                     </div>
                                   )}
                                 </div>
