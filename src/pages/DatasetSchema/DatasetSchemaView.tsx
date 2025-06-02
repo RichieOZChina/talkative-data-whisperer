@@ -10,6 +10,23 @@ import { Copy, Database, ArrowLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
+// Define types for the analysis data
+interface ColumnAnalysis {
+  column_name: string;
+  data_type: string;
+  sql_type: string;
+  sample_values?: string[];
+  null_count?: number;
+  unique_count?: number;
+  description: string;
+}
+
+interface AnalysisData {
+  column_analysis?: ColumnAnalysis[];
+  table_name?: string;
+  total_columns?: number;
+}
+
 const DatasetSchemaView = () => {
   const { datasetId } = useParams();
   const navigate = useNavigate();
@@ -59,7 +76,15 @@ const DatasetSchemaView = () => {
     );
   }
 
-  const analysis = schema.column_analysis;
+  // Type guard and safe access to analysis data
+  const getAnalysisData = (): AnalysisData | null => {
+    if (!schema.column_analysis || typeof schema.column_analysis !== 'object') {
+      return null;
+    }
+    return schema.column_analysis as AnalysisData;
+  };
+
+  const analysis = getAnalysisData();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-8">
@@ -102,70 +127,74 @@ const DatasetSchemaView = () => {
         </Card>
 
         {/* Column Analysis */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Column Analysis</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4">
-              {analysis.column_analysis?.map((column: any, index: number) => (
-                <div key={index} className="border rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="font-medium">{column.column_name}</h3>
-                    <Badge variant="secondary">{column.sql_type}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {column.description}
-                  </p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                    <div>
-                      <span className="font-medium">Data Type:</span> {column.data_type}
+        {analysis && analysis.column_analysis && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Column Analysis</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4">
+                {analysis.column_analysis.map((column: ColumnAnalysis, index: number) => (
+                  <div key={index} className="border rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-medium">{column.column_name}</h3>
+                      <Badge variant="secondary">{column.sql_type}</Badge>
                     </div>
-                    <div>
-                      <span className="font-medium">Unique Count:</span> {column.unique_count || 'N/A'}
-                    </div>
-                    <div>
-                      <span className="font-medium">Null Count:</span> {column.null_count || 0}
-                    </div>
-                    <div>
-                      <span className="font-medium">Sample Values:</span> 
-                      <div className="mt-1">
-                        {column.sample_values?.slice(0, 3).map((value: string, i: number) => (
-                          <Badge key={i} variant="outline" className="mr-1 text-xs">
-                            {value}
-                          </Badge>
-                        ))}
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {column.description}
+                    </p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                      <div>
+                        <span className="font-medium">Data Type:</span> {column.data_type}
+                      </div>
+                      <div>
+                        <span className="font-medium">Unique Count:</span> {column.unique_count || 'N/A'}
+                      </div>
+                      <div>
+                        <span className="font-medium">Null Count:</span> {column.null_count || 0}
+                      </div>
+                      <div>
+                        <span className="font-medium">Sample Values:</span> 
+                        <div className="mt-1">
+                          {column.sample_values?.slice(0, 3).map((value: string, i: number) => (
+                            <Badge key={i} variant="outline" className="mr-1 text-xs">
+                              {value}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Metadata */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Metadata</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <span className="font-medium">Table Name:</span> {analysis.table_name}
+        {analysis && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Metadata</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <span className="font-medium">Table Name:</span> {analysis.table_name || 'N/A'}
+                </div>
+                <div>
+                  <span className="font-medium">Total Columns:</span> {analysis.total_columns || 'N/A'}
+                </div>
+                <div>
+                  <span className="font-medium">Analysis Date:</span> {new Date(schema.created_at).toLocaleDateString()}
+                </div>
+                <div>
+                  <span className="font-medium">File:</span> {schema.datasets.file_name}
+                </div>
               </div>
-              <div>
-                <span className="font-medium">Total Columns:</span> {analysis.total_columns}
-              </div>
-              <div>
-                <span className="font-medium">Analysis Date:</span> {new Date(schema.created_at).toLocaleDateString()}
-              </div>
-              <div>
-                <span className="font-medium">File:</span> {schema.datasets.file_name}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
