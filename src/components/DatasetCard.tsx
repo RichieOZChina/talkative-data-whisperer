@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FileText, Play } from 'lucide-react';
 import DatasetAnalysisControls from './DatasetAnalysisControls';
+import DatasetPreview from './DatasetPreview';
 
 interface Dataset {
   id: string;
@@ -83,7 +84,8 @@ const DatasetCard = ({
           onModelChange={onModelChange}
         />
 
-        <div className="flex justify-end">
+        <div className="flex justify-between items-center">
+          <DatasetPreview dataset={dataset} />
           <Button 
             onClick={() => onStartAnalysis(dataset.id)}
             disabled={!canStartAnalysis}
