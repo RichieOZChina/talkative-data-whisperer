@@ -18,6 +18,29 @@ interface AnalysisResultsProps {
   isAnalyzing: boolean;
 }
 
+// Simple markdown renderer for basic formatting
+const renderMarkdown = (text: string) => {
+  return text
+    // Headers
+    .replace(/^### (.*$)/gm, '<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>')
+    .replace(/^## (.*$)/gm, '<h2 class="text-xl font-semibold mt-6 mb-3">$1</h2>')
+    .replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold mt-6 mb-4">$1</h1>')
+    // Bold text
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+    // Italic text
+    .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+    // Code blocks
+    .replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-100 p-3 rounded mt-2 mb-2 overflow-x-auto"><code>$1</code></pre>')
+    // Inline code
+    .replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-sm">$1</code>')
+    // Lists
+    .replace(/^\* (.*$)/gm, '<li class="ml-4 mb-1">• $1</li>')
+    .replace(/^- (.*$)/gm, '<li class="ml-4 mb-1">• $1</li>')
+    // Line breaks
+    .replace(/\n\n/g, '</p><p class="mb-3">')
+    .replace(/\n/g, '<br />');
+};
+
 const AnalysisResults = ({ results, isAnalyzing }: AnalysisResultsProps) => {
   if (results.length === 0 && !isAnalyzing) {
     return (
@@ -74,9 +97,12 @@ const AnalysisResults = ({ results, isAnalyzing }: AnalysisResultsProps) => {
           </CardHeader>
           <CardContent>
             <div className="prose prose-sm max-w-none">
-              <pre className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-lg">
-                {result.content}
-              </pre>
+              <div 
+                className="text-sm leading-relaxed"
+                dangerouslySetInnerHTML={{ 
+                  __html: `<p class="mb-3">${renderMarkdown(result.content)}</p>` 
+                }}
+              />
             </div>
           </CardContent>
         </Card>
