@@ -57,11 +57,11 @@ const FileUpload = () => {
 
       console.log('Basic metadata extracted:', basicMetadata);
 
-      // Update dataset with basic metadata
+      // Update dataset with basic metadata - cast to Json type
       const { error: datasetError } = await supabase
         .from('datasets')
         .update({
-          basic_metadata: basicMetadata,
+          basic_metadata: basicMetadata as any, // Cast to Json type
           metadata_extracted_at: new Date().toISOString(),
           status: 'ready'
         })

@@ -1,14 +1,13 @@
-
 export interface BasicColumnMetadata {
   column_name: string;
   data_type_detected: string;
   sample_values: string[];
   null_count: number;
   unique_count: number;
-  min_value?: string;
-  max_value?: string;
-  mean_value?: number;
-  std_dev?: number;
+  min_value?: string | null;
+  max_value?: string | null;
+  mean_value?: number | null;
+  std_dev?: number | null;
 }
 
 export interface BasicDatasetMetadata {
@@ -17,6 +16,7 @@ export interface BasicDatasetMetadata {
   columns: BasicColumnMetadata[];
   file_size: number;
   processing_time: number;
+  [key: string]: any; // Add index signature to make it compatible with Json type
 }
 
 export const detectDataType = (values: string[]): string => {
@@ -54,10 +54,10 @@ export const detectDataType = (values: string[]): string => {
 };
 
 export const calculateColumnStats = (values: string[], dataType: string): {
-  min_value?: string;
-  max_value?: string;
-  mean_value?: number;
-  std_dev?: number;
+  min_value?: string | null;
+  max_value?: string | null;
+  mean_value?: number | null;
+  std_dev?: number | null;
 } => {
   const nonNullValues = values.filter(v => v !== null && v !== undefined && v !== '');
   

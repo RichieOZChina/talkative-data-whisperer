@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -149,7 +148,7 @@ const DatasetPreview = ({ dataset }: DatasetPreviewProps) => {
   };
 
   const aiAnalysis = getAnalysisData(schemaData);
-  const basicMetadata = datasetWithMetadata?.basic_metadata;
+  const basicMetadata = datasetWithMetadata?.basic_metadata as BasicDatasetMetadata | null;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
