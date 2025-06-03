@@ -3,6 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Database, AlertCircle, Sparkles, BarChart3 } from 'lucide-react';
 import { AnalysisData, ColumnAnalysis } from './utils';
 import { BasicDatasetMetadata } from './metadataExtraction';
@@ -51,40 +52,49 @@ const MetadataAnalysisCard = ({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-3">
-              {basicMetadata.columns.map((column, index) => (
-                <div key={index} className="border rounded-lg p-4 bg-white/40 border-blue-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h4 className="font-medium text-blue-800">{column.column_name}</h4>
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                      {column.data_type_detected}
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                    <div className="space-y-1">
-                      <span className="font-medium text-xs uppercase tracking-wide text-blue-600">Statistics</span>
-                      <div className="space-y-1 text-blue-700">
-                        <div><span className="font-medium">Unique:</span> {column.unique_count}</div>
-                        <div><span className="font-medium">Nulls:</span> {column.null_count}</div>
-                        {column.mean_value && (
-                          <div><span className="font-medium">Mean:</span> {column.mean_value.toFixed(2)}</div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="space-y-1 md:col-span-2">
-                      <span className="font-medium text-xs uppercase tracking-wide text-blue-600">Sample Values</span>
-                      <div className="flex flex-wrap gap-1">
-                        {column.sample_values.slice(0, 4).map((value, i) => (
-                          <Badge key={i} variant="outline" className="text-xs px-2 py-1 border-blue-300 text-blue-600">
-                            {value.length > 15 ? `${value.substring(0, 15)}...` : value}
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="metadata-details">
+                <AccordionTrigger className="text-blue-800 hover:text-blue-900">
+                  View Column Details ({basicMetadata.columns.length} columns)
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid gap-3 pt-2">
+                    {basicMetadata.columns.map((column, index) => (
+                      <div key={index} className="border rounded-lg p-4 bg-white/40 border-blue-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-medium text-blue-800">{column.column_name}</h4>
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                            {column.data_type_detected}
                           </Badge>
-                        ))}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                          <div className="space-y-1">
+                            <span className="font-medium text-xs uppercase tracking-wide text-blue-600">Statistics</span>
+                            <div className="space-y-1 text-blue-700">
+                              <div><span className="font-medium">Unique:</span> {column.unique_count}</div>
+                              <div><span className="font-medium">Nulls:</span> {column.null_count}</div>
+                              {column.mean_value && (
+                                <div><span className="font-medium">Mean:</span> {column.mean_value.toFixed(2)}</div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="space-y-1 md:col-span-2">
+                            <span className="font-medium text-xs uppercase tracking-wide text-blue-600">Sample Values</span>
+                            <div className="flex flex-wrap gap-1">
+                              {column.sample_values.slice(0, 4).map((value, i) => (
+                                <Badge key={i} variant="outline" className="text-xs px-2 py-1 border-blue-300 text-blue-600">
+                                  {value.length > 15 ? `${value.substring(0, 15)}...` : value}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                </div>
-              ))}
-            </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </CardContent>
         </Card>
 
@@ -140,37 +150,46 @@ const MetadataAnalysisCard = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3">
-            {analysis.column_analysis.map((column: ColumnAnalysis, index: number) => (
-              <div key={index} className="border rounded-lg p-4 bg-white/40 border-green-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <h4 className="font-medium text-green-800">{column.column_name}</h4>
-                  <Badge variant="secondary" className="bg-green-100 text-green-700">{column.sql_type}</Badge>
-                  <Badge variant="outline" className="border-green-300 text-green-600">{column.data_type}</Badge>
-                </div>
-                <p className="text-sm text-green-700 mb-3">{column.description}</p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                  <div className="space-y-1">
-                    <span className="font-medium text-xs uppercase tracking-wide text-green-600">Statistics</span>
-                    <div className="space-y-1 text-green-700">
-                      <div><span className="font-medium">Unique:</span> {column.unique_count || 'N/A'}</div>
-                      <div><span className="font-medium">Nulls:</span> {column.null_count || 0}</div>
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="ai-analysis-details">
+              <AccordionTrigger className="text-green-800 hover:text-green-900">
+                View AI Analysis Details ({analysis.column_analysis.length} columns)
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="grid gap-3 pt-2">
+                  {analysis.column_analysis.map((column: ColumnAnalysis, index: number) => (
+                    <div key={index} className="border rounded-lg p-4 bg-white/40 border-green-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h4 className="font-medium text-green-800">{column.column_name}</h4>
+                        <Badge variant="secondary" className="bg-green-100 text-green-700">{column.sql_type}</Badge>
+                        <Badge variant="outline" className="border-green-300 text-green-600">{column.data_type}</Badge>
+                      </div>
+                      <p className="text-sm text-green-700 mb-3">{column.description}</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                        <div className="space-y-1">
+                          <span className="font-medium text-xs uppercase tracking-wide text-green-600">Statistics</span>
+                          <div className="space-y-1 text-green-700">
+                            <div><span className="font-medium">Unique:</span> {column.unique_count || 'N/A'}</div>
+                            <div><span className="font-medium">Nulls:</span> {column.null_count || 0}</div>
+                          </div>
+                        </div>
+                        <div className="space-y-1 md:col-span-2">
+                          <span className="font-medium text-xs uppercase tracking-wide text-green-600">Sample Values</span>
+                          <div className="flex flex-wrap gap-1">
+                            {column.sample_values?.slice(0, 4).map((value: string, i: number) => (
+                              <Badge key={i} variant="outline" className="text-xs px-2 py-1 border-green-300 text-green-600">
+                                {value.length > 15 ? `${value.substring(0, 15)}...` : value}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="space-y-1 md:col-span-2">
-                    <span className="font-medium text-xs uppercase tracking-wide text-green-600">Sample Values</span>
-                    <div className="flex flex-wrap gap-1">
-                      {column.sample_values?.slice(0, 4).map((value: string, i: number) => (
-                        <Badge key={i} variant="outline" className="text-xs px-2 py-1 border-green-300 text-green-600">
-                          {value.length > 15 ? `${value.substring(0, 15)}...` : value}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              </div>
-            ))}
-          </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </CardContent>
       </Card>
     );
