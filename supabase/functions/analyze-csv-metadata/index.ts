@@ -83,7 +83,7 @@ serve(async (req) => {
             1. A SQL CREATE TABLE statement with appropriate column names and data types
             2. A detailed analysis of each column including data type, sample values, and any patterns
 
-            Return your response as a JSON object with this structure:
+            IMPORTANT: Return ONLY a valid JSON object with this exact structure (no markdown formatting, no code blocks):
             {
               "sql_schema": "CREATE TABLE table_name (...);",
               "column_analysis": [
@@ -124,7 +124,32 @@ serve(async (req) => {
     }
 
     const aiResult = await openAIResponse.json();
-    const analysisResult = JSON.parse(aiResult.choices[0].message.content);
+    let analysisResult;
+    
+    try {
+      let content = aiResult.choices[0].message.content;
+      console.log('Raw OpenAI response:', content);
+      
+      // Clean up the response if it contains markdown code blocks
+      if (content.includes('```json')) {
+        content = content.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
+      } else if (content.includes('```')) {
+        content = content.replace(/```\s*/g, '');
+      }
+      
+      // Trim whitespace
+      content = content.trim();
+      
+      console.log('Cleaned content for parsing:', content);
+      analysisResult = JSON.parse(content);
+    } catch (parseError) {
+      console.error('Error parsing OpenAI response:', parseError);
+      console.error('Content that failed to parse:', aiResult.choices[0].message.content);
+      return new Response(
+        JSON.stringify({ error: 'Failed to parse AI analysis response' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log('OpenAI analysis complete:', analysisResult);
 
