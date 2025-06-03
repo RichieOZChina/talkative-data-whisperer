@@ -94,6 +94,69 @@ export type Database = {
           },
         ]
       }
+      analysis_suggestions: {
+        Row: {
+          analysis_id: string | null
+          analysis_type: string
+          complexity_level: string | null
+          created_at: string
+          dataset_id: string
+          description: string
+          estimated_time_minutes: number | null
+          id: string
+          metadata: Json | null
+          required_columns: string[] | null
+          suggested_prompt: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          analysis_id?: string | null
+          analysis_type: string
+          complexity_level?: string | null
+          created_at?: string
+          dataset_id: string
+          description: string
+          estimated_time_minutes?: number | null
+          id?: string
+          metadata?: Json | null
+          required_columns?: string[] | null
+          suggested_prompt?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          analysis_id?: string | null
+          analysis_type?: string
+          complexity_level?: string | null
+          created_at?: string
+          dataset_id?: string
+          description?: string
+          estimated_time_minutes?: number | null
+          id?: string
+          metadata?: Json | null
+          required_columns?: string[] | null
+          suggested_prompt?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_suggestions_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_suggestions_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: false
+            referencedRelation: "datasets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dataset_columns: {
         Row: {
           column_index: number

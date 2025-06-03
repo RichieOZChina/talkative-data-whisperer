@@ -1,12 +1,13 @@
-
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 import AnalysisSidebar from '@/components/AnalysisSidebar';
 import AnalysisResults from '@/components/AnalysisResults';
+import AnalysisSuggestions from './Analysis/AnalysisSuggestions';
 
 const Analysis = () => {
   const { datasetId } = useParams();
@@ -57,6 +58,79 @@ const Analysis = () => {
       return data;
     },
   });
+
+  const handleRunSuggestedAnalysis = async (suggestion: any) => {
+    if (!selectedModelId) {
+      toast({
+        title: "Model Required",
+        description: "Please select a model first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsAnalyzing(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('chat-with-openai', {
+        body: {
+          prompt: suggestion.suggested_prompt,
+          model: models?.find(m => m.id === selectedModelId)?.model_id || 'gpt-4o-mini',
+          datasetId: datasetId,
+          analysisType: suggestion.analysis_type
+        }
+      });
+
+      if (error) throw error;
+
+      const newResult = {
+        id: Date.now().toString(),
+        title: suggestion.title,
+        content: data.response,
+        timestamp: new Date().toISOString(),
+        prompt: suggestion.suggested_prompt,
+        model: models?.find(m => m.id === selectedModelId)?.name || 'Unknown'
+      };
+
+      setAnalysisResults(prev => [newResult, ...prev]);
+
+      toast({
+        title: "Analysis Complete",
+        description: `${suggestion.title} analysis has been completed`,
+      });
+
+    } catch (error) {
+      console.error('Error running suggested analysis:', error);
+      toast({
+        title: "Analysis Failed",
+        description: "There was an error running the analysis",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleAnalysisComplete = async (result: any) => {
+    setAnalysisResults(prev => [result, ...prev]);
+    
+    // Parse and save individual suggestions if the analysis contains them
+    if (result.content.includes('1.') && result.content.includes('**')) {
+      try {
+        await supabase.functions.invoke('parse-analysis-suggestions', {
+          body: {
+            analysisId: result.id,
+            content: result.content,
+            datasetId: datasetId
+          }
+        });
+        
+        console.log('Analysis suggestions parsed and saved');
+      } catch (error) {
+        console.error('Error parsing suggestions:', error);
+      }
+    }
+  };
 
   if (datasetLoading) {
     return (
@@ -113,16 +187,21 @@ const Analysis = () => {
               onPromptSelect={setSelectedPromptId}
               onModelSelect={setSelectedModelId}
               dataset={dataset}
-              onAnalysisComplete={(result) => {
-                setAnalysisResults(prev => [result, ...prev]);
-              }}
+              onAnalysisComplete={handleAnalysisComplete}
               isAnalyzing={isAnalyzing}
               setIsAnalyzing={setIsAnalyzing}
             />
           </div>
 
           {/* Right Content Area */}
-          <div className="flex-1">
+          <div className="flex-1 space-y-6">
+            {/* Analysis Suggestions */}
+            <AnalysisSuggestions 
+              datasetId={datasetId!} 
+              onRunAnalysis={handleRunSuggestedAnalysis}
+            />
+            
+            {/* Analysis Results */}
             <AnalysisResults 
               results={analysisResults} 
               isAnalyzing={isAnalyzing}
