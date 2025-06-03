@@ -3,16 +3,19 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, FileText, CheckCircle, Brain } from 'lucide-react';
+import { Upload, FileText, CheckCircle, Brain, Database } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { parseCSV } from './DatasetPreview/utils';
+import { extractBasicMetadata } from './DatasetPreview/metadataExtraction';
 
 const FileUpload = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [extractingMetadata, setExtractingMetadata] = useState(false);
 
   // Check if user is authenticated
   const { data: session } = useQuery({
@@ -43,42 +46,101 @@ const FileUpload = () => {
     }
   };
 
-  const parseCSVHeaders = (csvText: string) => {
-    const lines = csvText.split('\n');
-    if (lines.length === 0) return [];
-    
-    // Parse the first line as headers
-    const headers = lines[0].split(',').map(header => header.trim().replace(/"/g, ''));
-    return headers;
+  const extractImmediateMetadata = async (csvText: string, datasetId: string, fileSize: number) => {
+    try {
+      setExtractingMetadata(true);
+      console.log('Extracting immediate metadata for dataset:', datasetId);
+
+      const parsedData = parseCSV(csvText);
+      const basicMetadata = extractBasicMetadata(parsedData);
+      basicMetadata.file_size = fileSize;
+
+      console.log('Basic metadata extracted:', basicMetadata);
+
+      // Update dataset with basic metadata
+      const { error: datasetError } = await supabase
+        .from('datasets')
+        .update({
+          basic_metadata: basicMetadata,
+          metadata_extracted_at: new Date().toISOString(),
+          status: 'ready'
+        })
+        .eq('id', datasetId);
+
+      if (datasetError) {
+        console.error('Error updating dataset with metadata:', datasetError);
+        throw datasetError;
+      }
+
+      // Update column information with immediate analysis
+      const columnUpdates = basicMetadata.columns.map(async (column, index) => {
+        const { error } = await supabase
+          .from('dataset_columns')
+          .update({
+            data_type_detected: column.data_type_detected,
+            null_count: column.null_count,
+            unique_count: column.unique_count,
+            sample_values: column.sample_values,
+            min_value: column.min_value,
+            max_value: column.max_value,
+            mean_value: column.mean_value,
+            std_dev: column.std_dev
+          })
+          .eq('dataset_id', datasetId)
+          .eq('column_index', index);
+
+        if (error) {
+          console.error('Error updating column metadata:', error);
+        }
+      });
+
+      await Promise.all(columnUpdates);
+      console.log('Immediate metadata extraction completed');
+
+      toast({
+        title: "Metadata Extracted",
+        description: "Basic metadata has been analyzed and is ready for preview",
+      });
+
+    } catch (error) {
+      console.error('Error extracting immediate metadata:', error);
+      toast({
+        title: "Metadata Extraction Failed",
+        description: "Could not extract basic metadata from the file",
+        variant: "destructive",
+      });
+    } finally {
+      setExtractingMetadata(false);
+    }
   };
 
   const analyzeDatasetMetadata = async (datasetId: string) => {
     try {
       setAnalyzing(true);
-      console.log('Starting metadata analysis for dataset:', datasetId);
+      console.log('Starting AI metadata analysis for dataset:', datasetId);
 
       const { data, error } = await supabase.functions.invoke('analyze-csv-metadata', {
         body: { datasetId }
       });
 
       if (error) {
-        console.error('Analysis error:', error);
+        console.error('AI Analysis error:', error);
         throw error;
       }
 
-      console.log('Metadata analysis complete:', data);
+      console.log('AI Metadata analysis complete:', data);
       
       toast({
-        title: "Analysis Complete",
-        description: "AI has analyzed your dataset structure and generated SQL schema",
+        title: "AI Analysis Complete",
+        description: "AI has generated enhanced metadata and SQL schema",
       });
 
       return data;
     } catch (error) {
       console.error('Error analyzing metadata:', error);
       toast({
-        title: "Analysis Failed", 
-        description: "Could not analyze dataset metadata. Manual review may be needed.",
+        title: "AI Analysis Failed", 
+        description: "Could not generate AI analysis. Basic metadata is still available.",
         variant: "destructive",
       });
     } finally {
@@ -118,11 +180,11 @@ const FileUpload = () => {
 
       // Read file content to analyze structure
       const fileText = await selectedFile.text();
-      const headers = parseCSVHeaders(fileText);
-      const lines = fileText.split('\n').filter(line => line.trim());
-      const rowCount = Math.max(0, lines.length - 1); // Subtract header row
+      const parsedData = parseCSV(fileText);
+      const rowCount = Math.max(0, parsedData.length - 1); // Subtract header row
+      const columnCount = parsedData.length > 0 ? parsedData[0].length : 0;
 
-      console.log('CSV analysis:', { headers, rowCount });
+      console.log('CSV analysis:', { rowCount, columnCount });
 
       // Save dataset metadata to database
       const { data: datasetData, error: datasetError } = await supabase
@@ -134,7 +196,7 @@ const FileUpload = () => {
           file_path: filePath,
           file_size: selectedFile.size,
           row_count: rowCount,
-          column_count: headers.length,
+          column_count: columnCount,
           status: 'processing'
         })
         .select()
@@ -148,11 +210,12 @@ const FileUpload = () => {
       console.log('Dataset created:', datasetData);
 
       // Save column information
+      const headers = parsedData.length > 0 ? parsedData[0] : [];
       const columnPromises = headers.map((header, index) => 
         supabase.from('dataset_columns').insert({
           dataset_id: datasetData.id,
           column_name: header,
-          column_type: 'text', // Default to text, will be updated by AI analysis
+          column_type: 'text', // Default, will be updated by immediate analysis
           column_index: index
         })
       );
@@ -166,7 +229,10 @@ const FileUpload = () => {
         description: "Your CSV file has been processed and saved",
       });
 
-      // Automatically trigger metadata analysis
+      // Extract immediate metadata
+      await extractImmediateMetadata(fileText, datasetData.id, selectedFile.size);
+
+      // Optionally trigger AI analysis
       await analyzeDatasetMetadata(datasetData.id);
 
     } catch (error) {
@@ -186,6 +252,7 @@ const FileUpload = () => {
     setUploadComplete(false);
     setUploading(false);
     setAnalyzing(false);
+    setExtractingMetadata(false);
   };
 
   if (!session) {
@@ -226,7 +293,7 @@ const FileUpload = () => {
           CSV Upload
         </CardTitle>
         <CardDescription>
-          Upload your CSV file to start AI data analysis
+          Upload your CSV file for immediate metadata analysis
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -266,13 +333,23 @@ const FileUpload = () => {
           </>
         ) : (
           <div className="text-center space-y-4">
-            {analyzing ? (
+            {extractingMetadata ? (
               <>
-                <Brain className="h-12 w-12 text-blue-500 mx-auto animate-pulse" />
+                <Database className="h-12 w-12 text-blue-500 mx-auto animate-pulse" />
+                <div>
+                  <p className="font-medium">Extracting metadata...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Analyzing columns and data types
+                  </p>
+                </div>
+              </>
+            ) : analyzing ? (
+              <>
+                <Brain className="h-12 w-12 text-purple-500 mx-auto animate-pulse" />
                 <div>
                   <p className="font-medium">AI is analyzing your data...</p>
                   <p className="text-sm text-muted-foreground">
-                    Generating SQL schema and metadata
+                    Generating enhanced metadata and SQL schema
                   </p>
                 </div>
               </>
@@ -282,7 +359,7 @@ const FileUpload = () => {
                 <div>
                   <p className="font-medium">Upload & Analysis Complete!</p>
                   <p className="text-sm text-muted-foreground">
-                    Your data is ready for AI analysis
+                    Your data is ready for preview and analysis
                   </p>
                 </div>
               </>

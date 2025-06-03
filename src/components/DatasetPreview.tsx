@@ -10,6 +10,7 @@ import { parseCSV, getAnalysisData } from './DatasetPreview/utils';
 import MetadataAnalysisCard from './DatasetPreview/MetadataAnalysisCard';
 import DataTable from './DatasetPreview/DataTable';
 import PreviewSummary from './DatasetPreview/PreviewSummary';
+import { BasicDatasetMetadata } from './DatasetPreview/metadataExtraction';
 
 interface DatasetPreviewProps {
   dataset: {
@@ -18,6 +19,7 @@ interface DatasetPreviewProps {
     file_path: string;
     row_count: number;
     column_count: number;
+    basic_metadata?: BasicDatasetMetadata;
   };
 }
 
@@ -27,11 +29,32 @@ const DatasetPreview = ({ dataset }: DatasetPreviewProps) => {
   const [loading, setLoading] = useState(false);
   const [analysisLoading, setAnalysisLoading] = useState(false);
 
-  // Fetch schema analysis if available
+  // Fetch basic metadata from dataset
+  const { data: datasetWithMetadata, isLoading: datasetLoading } = useQuery({
+    queryKey: ['dataset-with-metadata', dataset.id],
+    queryFn: async () => {
+      console.log('Fetching dataset with metadata:', dataset.id);
+      const { data, error } = await supabase
+        .from('datasets')
+        .select('*, basic_metadata')
+        .eq('id', dataset.id)
+        .single();
+      
+      if (error) {
+        console.log('Error fetching dataset:', error);
+        return null;
+      }
+      console.log('Dataset with metadata:', data);
+      return data;
+    },
+    enabled: isOpen,
+  });
+
+  // Fetch AI schema analysis if available
   const { data: schemaData, isLoading: schemaLoading, refetch: refetchSchema } = useQuery({
     queryKey: ['dataset-schema', dataset.id],
     queryFn: async () => {
-      console.log('Fetching schema for dataset:', dataset.id);
+      console.log('Fetching AI schema for dataset:', dataset.id);
       const { data, error } = await supabase
         .from('dataset_schemas')
         .select('*')
@@ -39,10 +62,10 @@ const DatasetPreview = ({ dataset }: DatasetPreviewProps) => {
         .single();
       
       if (error) {
-        console.log('No schema found:', error);
+        console.log('No AI schema found:', error);
         return null;
       }
-      console.log('Schema data:', data);
+      console.log('AI Schema data:', data);
       return data;
     },
     enabled: isOpen,
@@ -100,8 +123,8 @@ const DatasetPreview = ({ dataset }: DatasetPreviewProps) => {
 
       console.log('Analysis completed:', data);
       toast({
-        title: "Analysis completed",
-        description: "AI metadata analysis has been generated successfully",
+        title: "AI Analysis completed",
+        description: "Enhanced metadata analysis has been generated successfully",
       });
 
       // Refetch the schema data to show the new analysis
@@ -109,7 +132,7 @@ const DatasetPreview = ({ dataset }: DatasetPreviewProps) => {
     } catch (error) {
       console.error('Error generating analysis:', error);
       toast({
-        title: "Error generating analysis",
+        title: "Error generating AI analysis",
         description: error instanceof Error ? error.message : "Failed to generate AI analysis",
         variant: "destructive",
       });
@@ -125,7 +148,8 @@ const DatasetPreview = ({ dataset }: DatasetPreviewProps) => {
     }
   };
 
-  const analysis = getAnalysisData(schemaData);
+  const aiAnalysis = getAnalysisData(schemaData);
+  const basicMetadata = datasetWithMetadata?.basic_metadata;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -143,11 +167,12 @@ const DatasetPreview = ({ dataset }: DatasetPreviewProps) => {
           </DialogTitle>
           <DialogDescription>
             Showing first 50 rows of your dataset ({dataset.row_count} total rows, {dataset.column_count} columns)
-            {analysis && " with AI-generated metadata analysis"}
+            {basicMetadata && " with immediate metadata analysis"}
+            {aiAnalysis && " and AI-enhanced insights"}
           </DialogDescription>
         </DialogHeader>
 
-        {(loading) ? (
+        {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
             Loading data preview...
@@ -155,13 +180,14 @@ const DatasetPreview = ({ dataset }: DatasetPreviewProps) => {
         ) : (
           <div className="space-y-6">
             <MetadataAnalysisCard 
-              analysis={analysis} 
-              isLoading={schemaLoading || analysisLoading}
+              analysis={aiAnalysis} 
+              basicMetadata={basicMetadata}
+              isLoading={datasetLoading || schemaLoading || analysisLoading}
               datasetId={dataset.id}
               onGenerateAnalysis={handleGenerateAnalysis}
             />
-            <DataTable csvData={csvData} analysis={analysis} />
-            <PreviewSummary csvData={csvData} analysis={analysis} />
+            <DataTable csvData={csvData} analysis={aiAnalysis} />
+            <PreviewSummary csvData={csvData} analysis={aiAnalysis} />
           </div>
         )}
       </DialogContent>

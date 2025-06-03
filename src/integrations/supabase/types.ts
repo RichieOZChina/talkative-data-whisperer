@@ -100,10 +100,15 @@ export type Database = {
           column_name: string
           column_type: string
           created_at: string
+          data_type_detected: string | null
           dataset_id: string
           id: string
+          max_value: string | null
+          mean_value: number | null
+          min_value: string | null
           null_count: number | null
           sample_values: Json | null
+          std_dev: number | null
           unique_count: number | null
         }
         Insert: {
@@ -111,10 +116,15 @@ export type Database = {
           column_name: string
           column_type: string
           created_at?: string
+          data_type_detected?: string | null
           dataset_id: string
           id?: string
+          max_value?: string | null
+          mean_value?: number | null
+          min_value?: string | null
           null_count?: number | null
           sample_values?: Json | null
+          std_dev?: number | null
           unique_count?: number | null
         }
         Update: {
@@ -122,10 +132,15 @@ export type Database = {
           column_name?: string
           column_type?: string
           created_at?: string
+          data_type_detected?: string | null
           dataset_id?: string
           id?: string
+          max_value?: string | null
+          mean_value?: number | null
+          min_value?: string | null
           null_count?: number | null
           sample_values?: Json | null
+          std_dev?: number | null
           unique_count?: number | null
         }
         Relationships: [
@@ -175,6 +190,7 @@ export type Database = {
       }
       datasets: {
         Row: {
+          basic_metadata: Json | null
           column_count: number | null
           created_at: string
           description: string | null
@@ -182,6 +198,7 @@ export type Database = {
           file_path: string
           file_size: number
           id: string
+          metadata_extracted_at: string | null
           name: string
           row_count: number | null
           status: string | null
@@ -189,6 +206,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          basic_metadata?: Json | null
           column_count?: number | null
           created_at?: string
           description?: string | null
@@ -196,6 +214,7 @@ export type Database = {
           file_path: string
           file_size: number
           id?: string
+          metadata_extracted_at?: string | null
           name: string
           row_count?: number | null
           status?: string | null
@@ -203,6 +222,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          basic_metadata?: Json | null
           column_count?: number | null
           created_at?: string
           description?: string | null
@@ -210,6 +230,7 @@ export type Database = {
           file_path?: string
           file_size?: number
           id?: string
+          metadata_extracted_at?: string | null
           name?: string
           row_count?: number | null
           status?: string | null
