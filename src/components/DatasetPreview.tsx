@@ -25,9 +25,10 @@ const DatasetPreview = ({ dataset }: DatasetPreviewProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [csvData, setCsvData] = useState<string[][]>([]);
   const [loading, setLoading] = useState(false);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
 
   // Fetch schema analysis if available
-  const { data: schemaData, isLoading: schemaLoading } = useQuery({
+  const { data: schemaData, isLoading: schemaLoading, refetch: refetchSchema } = useQuery({
     queryKey: ['dataset-schema', dataset.id],
     queryFn: async () => {
       console.log('Fetching schema for dataset:', dataset.id);
@@ -83,6 +84,40 @@ const DatasetPreview = ({ dataset }: DatasetPreviewProps) => {
     }
   };
 
+  const handleGenerateAnalysis = async () => {
+    setAnalysisLoading(true);
+    try {
+      console.log('Triggering AI analysis for dataset:', dataset.id);
+      
+      const { data, error } = await supabase.functions.invoke('analyze-csv-metadata', {
+        body: { datasetId: dataset.id }
+      });
+
+      if (error) {
+        console.error('Analysis error:', error);
+        throw error;
+      }
+
+      console.log('Analysis completed:', data);
+      toast({
+        title: "Analysis completed",
+        description: "AI metadata analysis has been generated successfully",
+      });
+
+      // Refetch the schema data to show the new analysis
+      refetchSchema();
+    } catch (error) {
+      console.error('Error generating analysis:', error);
+      toast({
+        title: "Error generating analysis",
+        description: error instanceof Error ? error.message : "Failed to generate AI analysis",
+        variant: "destructive",
+      });
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
+
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
     if (open) {
@@ -112,14 +147,19 @@ const DatasetPreview = ({ dataset }: DatasetPreviewProps) => {
           </DialogDescription>
         </DialogHeader>
 
-        {(loading || schemaLoading) ? (
+        {(loading) ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
-            Loading data preview and analysis...
+            Loading data preview...
           </div>
         ) : (
           <div className="space-y-6">
-            <MetadataAnalysisCard analysis={analysis} isLoading={schemaLoading} />
+            <MetadataAnalysisCard 
+              analysis={analysis} 
+              isLoading={schemaLoading || analysisLoading}
+              datasetId={dataset.id}
+              onGenerateAnalysis={handleGenerateAnalysis}
+            />
             <DataTable csvData={csvData} analysis={analysis} />
             <PreviewSummary csvData={csvData} analysis={analysis} />
           </div>
